@@ -1,0 +1,27 @@
+# When to start asking whether the release came up.
+#
+# A watch rather than `OnFailure=` on each daemon, and that is a decision worth keeping written
+# down. `OnFailure=` fires when a unit enters `failed`, which these units are configured to avoid:
+# all four use `Restart=always` for reasons argued in their own unit files, and none overrides
+# systemd's default start limit — so a `btd` restarting every 5s crash-loops indefinitely without
+# ever entering `failed`. Making `OnFailure=` fire would mean retuning those units so the daemons
+# give up, which degrades the normal case to enable the rescue case.
+#
+# Watching needs no unit changes, catches the forever-restarter, and asks the question that matters
+# — did this release come up? — rather than "did systemd give up on something?".
+
+[Unit]
+Description=Start watching whether the booted release came up
+
+[Timer]
+# Early, because the script does its own waiting: it stops once every daemon has run steadily for
+# 10 s, or at `[update_gate] boot_deadline_s`. A daemon that has not started yet is not settled, so
+# starting before the daemons do costs nothing but a few polls.
+OnBootSec=1
+
+# The verdict lands about 10 s after the last daemon starts; a loose timer would add its slack to
+# that on every boot.
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
